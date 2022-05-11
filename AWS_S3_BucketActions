@@ -1,0 +1,124 @@
+"""
+Manuel Marquez
+SDEV 400
+"""
+
+import io
+import datetime
+import logging
+import boto3
+from botocore.exceptions import ClientError
+
+
+def create_bucket():
+    bucket_name=input("Enter your first and last name, followed by 6 digits (no spaces): ")
+    s3 = boto3.client('s3')
+    s3.create_bucket(Bucket=bucket_name)
+
+def delete_bucket():
+    bucket_name=input("Enter Bucket you would like to Delete: ")
+    s3 = boto3.client('s3')
+    s3.delete_bucket(Bucket=bucket_name)
+    print(bucket_name + " was successfully deleted.")
+    print(" ")
+
+menu = {}
+menu['1']='Create New Bucket'
+menu['2']='Put Object in an Existing Bucket'
+menu['3']='Delete Object in an Existing Bucket'
+menu['4']='Delete an Existing Bucket'
+menu['5']='Copy Object from one Bucket to Another'
+menu['6']='Download an Existing Object from an Existing Bucket'
+menu['7']='Exit Program, Display date and time'
+
+
+while True: 
+    options=menu.keys()
+    for entry in options: 
+      print (entry, menu[entry])
+    print(" ")
+    selection=input("Please Select:")
+    print(" ")
+    if selection =='1': 
+      create_bucket() 
+      
+    elif selection == '2': 
+      bucket_name = input("Enter Desired Bucket Name: ")
+      object_name = input("Enter Object Name: ")
+      file_path = input("Enter File Path: ")
+      # Construct Body= parameter
+      if isinstance(file_path, bytes):
+            object_data = file_path
+      elif isinstance(file_path, str):
+            try:
+                object_data = open(file_path, 'rb')
+                # possible FileNotFoundError/IOError exception
+            except Exception as e:
+                logging.error(e)
+      else:
+            logging.error('Type of ' + str(type(file_path)) +
+                      ' for the argument \'file_path\' is not supported.')
+      # Put the object
+      s3 = boto3.client('s3')
+      try:
+          s3.put_object(Bucket=bucket_name, Key=object_name, Body=object_data)
+      except ClientError as e:
+          # AllAccessDisabled error == bucket not found
+          # NoSuchKey or InvalidRequest error == (dest bucket/obj == src bucket/obj)
+          logging.error(e)
+       # Set up logging
+      logging.basicConfig(level=logging.DEBUG,
+                    format='%(levelname)s: %(asctime)s: %(message)s')
+
+         # Put the object into the bucket
+      success = bucket_name, object_name, file_path
+      if success:
+        logging.info(f'Added {object_name} to {bucket_name}')
+      
+    elif selection == '3':
+        bucket_name = input("Enter Desired Bucket Name: ")
+        object_name = input("Enter Object Name: ")
+        s3 = boto3.client('s3')
+        try:
+            s3.delete_object(Bucket=bucket_name, Key=object_name)
+            logging.info(f'{object_name} was deleted from {bucket_name}')
+            print(object_name + " deleted from "+ bucket_name)
+        except ClientError as e:
+            logging.error(e)
+            
+    elif selection == '4':
+        delete_bucket()
+
+    elif selection == '5': 
+        print(" ")
+        b1 = input("Bucket you are copying the Object from: ")
+        object_name = input("Name of Object you are copying: ")
+        b2 = input("Bucket you are copying the Object to: ")
+        print(" ")
+        copy_source = {'Bucket': b1, 'Key': object_name}
+        s3 = boto3.resource('s3')
+        old= s3.Object(b1, object_name)
+        new= s3.Object(b2, object_name)
+        try:
+            new.copy_from(CopySource=f'{b1}/{object_name}')
+            print("Object successfully copied.")
+            print(" ")
+        except ClientError as e:
+            logging.error(e)
+        
+    elif selection == '6':
+        bucket_name = input("Enter Desired Bucket Name: ")
+        object_name = input("Enter Object Name: ")
+        s3 = boto3.resource('s3')
+        s3_object = s3.Object(bucket_name, object_name)
+        s3.meta.client.download_file( bucket_name, object_name, '/home/ec2-user/environment/shark.png')
+        print("Download Complete")
+        
+    elif selection == '7': 
+        now = datetime.datetime.now()
+        print(now.strftime("%Y-%m-%d %H:%M:%S"))
+        break
+    else: 
+      print ("Unknown Option Selected!") 
+      print(" ")
+
